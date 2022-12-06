@@ -1,0 +1,137 @@
+---
+title: "San Francisco Housing"
+author: "Bradley West"
+date: '2022-12-06'
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning = FALSE, message = FALSE)
+library(plotly)
+library(ggplot2)
+```
+
+# Conducting simple regression on San Francisco housing data. 
+### Data Provided by scrapfishies on Kaggle
+$$H_o:\textit{Sqft is not an accurate predictor of Price}$$
+$$H_a:\textit{Sqft is significant predictor on Housing Costs}$$
+$$\alpha= 0.05$$
+
+```{r sf}
+# Read in and View Data
+df <- read.csv('sf_clean.csv')
+head(df)
+
+```
+\newpage
+## Beginning Simple Linear Regression
+
+
+``` {r sf_lr, echo=FALSE}
+# Step 1. Create Exploratory Chart to view Price vs. Predictor
+plot(price ~ sqft, data = df, 
+     pch = 18, 
+     cex = 0.7, 
+     col = '#69b3a2', 
+     xlab = 'Square-footage of the Listing', 
+     ylab = 'Price of Listing ($/Month)', 
+     main = 'Rental Rate in San Francisco')
+```
+\pagebreak
+
+# It seems evident that Square Footage plays a large in the Rental Rates in San Francisco. 
+``` {r slr}
+slr <- lm(price ~ sqft, data = df)
+summary(slr)
+```
+Based on the p-value produced from our linear model, we can reject the null hypothesis at the 5% significance level. 
+There is sufficient evidence to suggest that sqft is a significant predictor in the housing prices in San Francisco. 
+
+Least Squares = $$\hat{y} = 2.72293x + 935.36946 $$
+
+\pagebreak
+# Plot the linear Model
+``` {r slr plot, echo=FALSE}
+# y = 2.72293x + 935.36946
+yfit <- slr$fitted.values
+plot(price ~ sqft, data = df, 
+     pch = 18, 
+     cex = 0.7, 
+     col = '#69b3a2', 
+     xlab = 'Square-footage of the Listing', 
+     ylab = 'Price of Listing ($/Month)', 
+     main = 'Rental Rate in San Francisco')
+abline(coefficients(slr))
+```
+\pagebreak
+
+# Plot histogram of the Residuals, showing normal distribution around 0
+
+``` {r hist, echo=FALSE}
+# Residual Histogram Chart. 
+p <- ggplot(data=df, aes(slr$residuals)) + 
+  geom_histogram(color = 'black', binwidth = 1 ) 
+p + ggtitle("Histogram for Model Residuals")
+
+```
+
+\pagebreak
+# Create price prediction model, given random sqft 
+
+```{r prediction}
+set.seed(1)
+random_sqft <- as.data.frame(
+    matrix(
+    round(
+      runif(n = 30,
+            min = 500,
+            max = 5000)
+    )
+  )
+)
+colnames(random_sqft) <- c('sqft')
+
+predicted_price <- predict(slr, newdata = random_sqft)
+predicted_model_df <- cbind(predicted_price, random_sqft)
+summary(predicted_model_df)
+```
+
+```{r prediction_plot, echo=FALSE}
+ggplot(data = predicted_model_df,
+       aes(x = sqft, y = predicted_price)) + 
+  geom_point(shape = 18, color = 'blue', size = 7) +
+  scale_y_continuous(breaks = c(1500, 3000, 4500, 6000, 7500, 9000, 10500, 12000, 13500)) + 
+  labs(x = 'SQFT', y = 'Predicted Monthly Rent', title = 'Predicted Rental Rates in San Francisco')
+```
+
+\pagebreak
+
+# Create Multiple Linear Regression Model, adding Neighborhood District to the model
+
+```{r mlr}
+mlr <- lm(price ~ sqft + hood_district, data = df)
+summary(mlr)
+```
+\pagebreak
+
+# Plot the new MLR Model
+
+```{r mlrmodel, echo=FALSE}
+fig <- plot_ly(x = df$sqft, 
+               y = df$price,
+               text = paste("Disctrict: ", df$hood_district),
+               color = df$hood_district,
+               size = df$sqft) %>%
+  layout(title = 'Rental Rates in San Francisco',
+         plot_bgcolor = "#e5ecf6", 
+         xaxis = list(title = 'Square Footage (sqft)'), 
+         yaxis = list(title = 'Price ($/month)'),
+         align = "right",
+         valign = 'top',
+         legend = list(title=list(text='District')))
+fig
+```
+
